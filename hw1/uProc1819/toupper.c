@@ -6,8 +6,6 @@
 #include "options.h"
 
 
-//int gettimeofday(struct timeval *tv, struct timezone *tz);
-
 int debug = 0;
 double *results;
 double *ratios;
@@ -15,28 +13,56 @@ unsigned long   *sizes;
 
 int no_sz = 1, no_ratio =1, no_version=1;
 
-
+static const double kMicro = 1.0e-6;
 
 static inline
 double gettime(void) {
+/*
   struct timespec tp;
   clock_gettime(CLOCK_REALTIME, &tp);
   return tp.tv_nsec/1000;
+*/
+	struct timeval TV;
+	struct timezone TZ;
+
+	const int RC = gettimeofday(&TV, &TZ);
+	if (RC == -1) {
+		printf("ERROR: Bad call to gettimeofday\n");
+		return(-1);
+	}
+
+	return( ((double)TV.tv_sec) + kMicro * ((double)TV.tv_usec) );
 }
 
 
 static void toupper_simple(char * text) {
-  // to be implemented
-  int i = 0;
-  while(text[i] != '\0')
-  {
-    if(text[i] > 96 && text[i] < 123)
-    {
-      text[i] -= 32;
-    }
-    i++;
-  }
 
+  while(*text != '\0') {
+    
+    //if(*text > 96 && *text < 123)
+    //{
+    //  *text -= 32;
+    //}
+    *text += (((96 - *text) & (*text - 123)) >> 7) & (-32);
+    text++;
+
+    // 65 A
+    // The main idea here was to eliminate the branch prediction here and
+    // the unnecessary memory reads to the text array. The basic idea behind
+    // the code is to do a bit manipulation: we only need to a minus calculation
+    // when the read character is inside of the range of 96 and 123. The code works
+    // by using the MSB - most significant bit - of the resulting combination in 
+    // logic operator: 
+    // Assume the element we have read is 'a' which is 97 in ASCII.
+    // (96 - 97) & (97 - 123) = (-1) & (-26) = -26 in bitwise & operator. If you look
+    // at the binary representation of -26, you can see that it's MSB is 1. We then do
+    // do a shift arithmetic right operation with 7 - since chars are 8 bits - bits 
+    // to carry the MSB over all the bits of the number. And then (-26) & (-32) results 
+    // in (-32) hence we minus the value from the number.
+    // If we have read an already capital element like 'A' which is 65 in ASCII:
+    // (96 - 65) & (65 - 123) = (31) & (-58) = 6 with a 0 as MSB, then 0 & (-32) = 0
+    // hence we do not need to substract from the character.
+  }
 }
 
 
